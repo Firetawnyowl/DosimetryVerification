@@ -12,11 +12,11 @@ def rad_angle(angle):
 
 def point_rotation(coordinates, rot_matrix):
     rotated_point_coordinates = np.dot(rot_matrix, np.array(coordinates))
-    # x = rotated_point_coordinates[0]
-    # y = rotated_point_coordinates[1]
-    # z = rotated_point_coordinates[2]
-    # rotated_point = np.array([x, y, z])
-    return rotated_point_coordinates
+    x = rotated_point_coordinates[0]
+    y = rotated_point_coordinates[1]
+    z = rotated_point_coordinates[2]
+    rotated_point = np.array([x, y, z])
+    return rotated_point
 
 
 def rotation_matrix(x_rotate, z_rotate):
@@ -51,7 +51,11 @@ def find_parameter(plane, point1, point2):
     a, b, c, d = plane
     x1, y1, z1 = point1
     x2, y2, z2 = point2
-    l_param = -(a*x1 + b*y1 + c*z1 + d)/(a*(x2 - x1) + b*(y2 - y1) + c*(z2 - z1))
+    m = (a*(x2 - x1) + b*(y2 - y1) + c*(z2 - z1))
+    if m != 0:
+        l_param = -(a*x1 + b*y1 + c*z1 + d)/m
+    else:
+        l_param = None
     return l_param
 
 
@@ -74,10 +78,13 @@ def find_intersection_point(plane, point1, point2):
     l_parameter = find_parameter(plane, point1, point2)
     x1, y1, z1 = point1
     x2, y2, z2 = point2
-    x = l_parameter*(x2 - x1) + x1
-    y = l_parameter*(y2 - y1) + y1
-    z = l_parameter*(z2 - z1) + z1
-    intersection_point = (x, y, z)
+    if l_parameter is not None:
+        x = l_parameter*(x2 - x1) + x1
+        y = l_parameter*(y2 - y1) + y1
+        z = l_parameter*(z2 - z1) + z1
+        intersection_point = (x, y, z)
+    else:
+        intersection_point = None
     return intersection_point
 
 

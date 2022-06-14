@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 
 # import math
-
-import time
+import os
 import numpy as np
+import multiprocessing as mp
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+from PyQt5.QtCore import QObject, QThread, pyqtSignal
 import Geometry
 # import matplotlib.pyplot as plt
 import Phantom
@@ -55,6 +57,7 @@ class MeasuringPlatePlacement:
     def find_boundaries(self):
         min_y = min(self.corners, key=lambda coordinates: coordinates[1])[1]
         max_y = max(self.corners, key=lambda coordinates: coordinates[1])[1]
+        # print("measuring_plate_boundaries: ", min_y, max_y)
         return [min_y, max_y]
 
     def plot_edges(self, ax, color="red"):
@@ -98,7 +101,7 @@ class DoseDistribution:
         # self.data = self.dose_map()
         self.rows_number = self.plate_structure.shape[1]
         self.voxels_number = self.plate_structure.shape[0]
-        self.doses = np.zeros((self.rows_number, self.voxels_number), dtype=float)
+        self.doses = np.zeros((self.voxels_number, self.rows_number), dtype=float)
 
     def nonzero_structure(self):
         rows_number = self.plate_structure.shape[1]
@@ -111,48 +114,104 @@ class DoseDistribution:
             for j in range(rows_number):
                 voxel = self.plate_structure[i, j]
                 if max_x+vox_x/2 > voxel[0] > min_x-vox_x/2 and max_z+vox_z/2 > voxel[2] > min_z-vox_z/2:
-                    voxels.append([j, i])
+                    voxels.append([i, j])
         return np.array(voxels)
 
     def dose_map(self):
-        # rows_number = self.plate_structure.shape[1]
-        # voxels_number = self.plate_structure.shape[0]
-        max_x, min_x, max_z, min_z = self.phantom_part.nonzero_boundaries
-        # doses = np.zeros((voxels_number, rows_number), dtype=float)
-        vox_x = self.measuring_plate.voxel_size[0]
-        vox_z = self.measuring_plate.voxel_size[2]
-        num_of_nonzero_voxels = int((max_x - min_x + vox_x)/vox_x)*int((max_z - min_z + vox_z)/vox_z)
-        nonzero_operations_counter = 0
-        end_time = 0
-        for i in range(self.rows_number):
-            for j in range(self.voxels_number):
-                progress_value = (self.voxels_number*i + j + 1)*100/(self.voxels_number*self.rows_number)
-                voxel = self.plate_structure[j, i]
-                # if max_x >= voxel[0] >= min_x and max_z >= voxel[2] >= min_z:
-                if max_x+vox_x/2 > voxel[0] > min_x-vox_x/2 and max_z+vox_z/2 > voxel[2] > min_z-vox_z/2:
-                    nonzero_operations_counter += 1
-                    try:
-                        start_time = time.time()
-                        self.doses[i, j] = VoxIntersections.dose_in_movable_voxel(self.measuring_plate,
-                                                                                  self.plate_structure[j, i],
-                                                                                  self.phantom_part)
-                        if self.doses[i, j] != 0:
-                            end_time += (time.time() - start_time)
-                            average_time = end_time/nonzero_operations_counter
-                            rest_time = (num_of_nonzero_voxels -
-                                         nonzero_operations_counter)*average_time
-                            # print("average time ", average_time)
-                            # print("current voxels ", nonzero_operations_counter)
-                            # print("rest voxels ", num_of_nonzero_voxels - nonzero_operations_counter)
-                        else:
-                            rest_time = None
-                        # print(i, j, self.doses[i, j])
-                        yield i, j, self.doses[i, j], progress_value, rest_time
-                    except TypeError:
-                        # print(i, j, 0)
-                        yield i, j, 0.0, progress_value, None
-                        continue
-                else:
-                    # print(i, j, 0)
-                    yield i, j, 0.0, progress_value, None
-        # return doses
+        manager = mp.Manager()
+        voxels = manager.Queue()
+        doses = manager.Queue()
+        ncpu = mp.cpu_count()
+        for voxel in self.nonzero_structure():
+            voxels.put(voxel)
+        # print(voxels.qsize())
+
+        with ProcessPoolExecutor(max_workers=ncpu) as process:
+            for i in range(ncpu):
+                try:
+                    process.submit(self.dose_in_nonzero_voxel, voxels, doses)
+
+                except Exception as ex:
+                    print(type(ex).__name__, ex.args)
+        # with ThreadPoolExecutor(max_workers=6) as thread:
+        #     for i in range(6):
+        #         try:
+        #             thread.submit(self.dose_in_nonzero_voxel, voxels, doses)
+        #
+        #         except Exception as ex:
+        #             print(type(ex).__name__, ex.args)
+
+        # processes = []
+        # for i in range(mp.cpu_count()):
+        #     p = mp.Process(target=self.dose_in_nonzero_voxel, args=(voxels, doses))
+        #     # processes.append(p)
+        #     p.start()
+        # for p in processes:
+        #     p.join()
+        while not doses.empty():
+            dose = doses.get()
+            self.doses[dose[0], dose[1]] = dose[2]
+
+    # def threading_in_process(self, voxels, doses):
+    #     with ThreadPoolExecutor(max_workers=3) as thread:
+    #         for i in range(3):
+    #             try:
+    #                 thread.submit(self.dose_in_nonzero_voxel, voxels, doses)
+    #
+    #             except Exception as ex:
+    #                 print(type(ex).__name__, ex.args)
+
+    def dose_in_nonzero_voxel(self, voxels, doses):
+        # nonzero_voxels = self.nonzero_structure()
+        # for voxel in nonzero_voxels:
+        number_of_nonzero_voxels = len(self.nonzero_structure())
+        while not voxels.empty():
+            voxel = voxels.get()
+            i = voxel[0]
+            j = voxel[1]
+            try:
+                # self.doses[i, j] = VoxIntersections.dose_in_movable_voxel(self.measuring_plate,
+                #                                                           self.plate_structure[i, j],
+                #                                                           self.phantom_part)
+                dose = VoxIntersections.dose_in_movable_voxel(self.measuring_plate,
+                                                              self.plate_structure[i, j],
+                                                              self.phantom_part)
+                dose_in_voxel = [i, j, dose]
+                doses.put(dose_in_voxel)
+                # print(dose_in_voxel)
+                # yield i, j, self.doses[i, j]
+            except TypeError:
+                pass
+                # print(type(ex).__name__, ex.args)
+                # print(i, j, 0.0)
+                # yield i, j, 0.0
+
+            os.system("cls")
+            print("complete: ", int((number_of_nonzero_voxels - voxels.qsize()) / number_of_nonzero_voxels * 100), "%")
+
+    # def dose_map(self):
+    #     # rows_number = self.plate_structure.shape[1]
+    #     # voxels_number = self.plate_structure.shape[0]
+    #     max_x, min_x, max_z, min_z = self.phantom_part.nonzero_boundaries
+    #     # doses = np.zeros((voxels_number, rows_number), dtype=float)
+    #     vox_x = self.measuring_plate.voxel_size[0]
+    #     vox_z = self.measuring_plate.voxel_size[2]
+    #     for i in range(self.voxels_number):
+    #         for j in range(self.rows_number):
+    #             voxel = self.plate_structure[i, j]
+    #             if max_x+vox_x/2 > voxel[0] > min_x-vox_x/2 and max_z+vox_z/2 > voxel[2] > min_z-vox_z/2:
+    #             # if max_x >= voxel[0] >= min_x and max_z >= voxel[2] >= min_z:
+    #                 try:
+    #                     self.doses[i, j] = VoxIntersections.dose_in_movable_voxel(self.measuring_plate,
+    #                                                                          self.plate_structure[i, j],
+    #                                                                          self.phantom_part)
+    #                     print(i, j, self.doses[i, j])
+    #                     yield i, j, self.doses[i, j]
+    #                 except TypeError:
+    #                     print(i, j, 0)
+    #                     yield i, j, 0
+    #                     continue
+    #             # else:
+    #             #     print(i, j, 0)
+    #             #     yield i, j, 0
+    #     # return doses

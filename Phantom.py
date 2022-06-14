@@ -8,9 +8,7 @@ class Phantom:
     def __init__(self, load_data, shape, voxel_size=(1, 1, 1)):
         self.dose_data = load_data.reshaped_data(shape)
         self.original_data = load_data.data
-
-        # воксели считаются по горизонтальным слоям
-        self.original_data_layers = self.original_data.reshape(shape[2], shape[1], shape[0])
+        self.original_data_layers = self.original_data.reshape(shape[2], shape[1], shape[0])  # воксели считаются по горизонтальным слоям
         self.shape = shape
         self.voxel_size = voxel_size
         self.size = (self.shape[0]*self.voxel_size[0], self.shape[1]*self.voxel_size[1],
@@ -25,14 +23,20 @@ class Phantom:
         min_layer = max_layer = 0
         for layer_index in range(self.shape[1]):
             layer_borders = self.layer_y_borders(layer_index)
+            # print("layer_borders", layer_borders)
             if layer_borders[0] <= measuring_plate_boundaries[0] <= layer_borders[1]:
                 min_layer = layer_index
+                # print("test1")
             elif layer_borders[0] <= measuring_plate_boundaries[1] <= layer_borders[1]:
                 max_layer = layer_index + 1
+                # print("test2")
             elif measuring_plate_boundaries[0] < 0:
                 min_layer = 0
+                # print("test3")
             elif measuring_plate_boundaries[1] > self.size[1]:
                 max_layer = self.shape[0] - 1
+                # print("test4")
+        # print(min_layer, max_layer)
         return min_layer, max_layer
 
     # def desired_layers_structure(self, measuring_plate_boundaries):
@@ -107,14 +111,12 @@ class PhantomPart(VoxelStructure.FixedVoxelStructure):
     def nonzero_part(self):
         nonzero_part = []
         one_dim_data_nonzero = []
-        # counter = 0
         for layer_number, layer in enumerate(self.data):
             for row_number, row in enumerate(layer):
                 for voxel_number, voxel in enumerate(row):
                     if voxel[3] != 0:
                         nonzero_part.append([(layer_number, row_number, voxel_number), voxel])
                         one_dim_data_nonzero.append(voxel)
-                        # counter += 1
         if one_dim_data_nonzero:
             nonzero_boundaries = self.nonzero_part_boundaries(one_dim_data_nonzero)
         else:

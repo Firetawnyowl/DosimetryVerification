@@ -8,7 +8,6 @@ import Phantom
 import VoxelStructure
 import Geometry
 
-current_voxel = 0
 
 def find_neighbors(phantom_part: Phantom.PhantomPart, fixed_voxel_indexes):
     # start_time = time.time()
@@ -60,28 +59,22 @@ def check_intersection(fixed_voxel_corners, movable_voxel_corners):
 
 
 def find_first_intersected_voxel(phantom_part: Phantom.PhantomPart, movable_voxel, movable_voxel_corners):
-
-    start_time = time.time()
-    #global current_voxel
-    #print(current_voxel)
+    # start_time = time.time()
+    # print("start finding first intersection")
+    # print("mov vox", movable_voxel_corners)
     for voxel in phantom_part.nonzero_data:
-    #for i in range(current_voxel, len(phantom_part.nonzero_data)):
-     #   voxel = phantom_part.nonzero_data[i]
-        # print(voxel)
         fixed_voxel_index = voxel[0]
         fixed_voxel = voxel[1]
         fixed_voxel_center = fixed_voxel[:3]
         if Geometry.distance(fixed_voxel_center, movable_voxel) < 2*max(phantom_part.voxel_size):
             fixed_voxel_corners = phantom_part.voxel_corners(fixed_voxel)
-            # print(voxel)
-            # print("fix vox", fixed_voxel_corners)
+            #print("fix vox", fixed_voxel_corners)
             if check_intersection(fixed_voxel_corners, movable_voxel_corners):
+                # print("check intersection is True for fixed voxel ", fixed_voxel, " and movable voxel ", movable_voxel)
                 current_index = fixed_voxel_index
                 # print("current_index", current_index)
                 # print("end finding first intersected voxel:  %s seconds" % (time.time() - start_time))
                 # print("--- %s seconds ---" % (time.time() - start_time))
-                #current_voxel = i
-                # print("find first intersected voxel", time.time()-start_time)
                 return current_index
 
 
@@ -150,7 +143,7 @@ def find_intersection_points_of_two_voxels(movable_voxel_points, fixed_voxel,
         for plane in fixed_voxel_plains:
             try:
                 point = Geometry.find_intersection_point(plane, edge[0], edge[1])
-                if Geometry.is_point_on_edge_checking(point, edge[0], edge[1]) and Geometry.is_point_in_voxel(
+                if (point is not None) and Geometry.is_point_on_edge_checking(point, edge[0], edge[1]) and Geometry.is_point_in_voxel(
                         point, fixed_voxel_points):
                     points.append(point)
             except ZeroDivisionError:
@@ -161,7 +154,7 @@ def find_intersection_points_of_two_voxels(movable_voxel_points, fixed_voxel,
         for plane in movable_voxel_plains:
             try:
                 point = Geometry.find_intersection_point(plane, edge[0], edge[1])
-                if Geometry.is_point_on_edge_checking(point, edge[0], edge[1]) and Geometry.is_point_in_voxel(
+                if (point is not None) and Geometry.is_point_on_edge_checking(point, edge[0], edge[1]) and Geometry.is_point_in_voxel(
                         point, movable_voxel_points):
                     if point not in points:
                         points.append(point)
@@ -214,13 +207,9 @@ def contribution_to_dose(measuring_plate: VoxelStructure.MovableVoxelStructure, 
 
 def dose_in_movable_voxel(measuring_plate, movable_voxel, phantom_part):
     # print("start calculating dose in movable voxel: ", movable_voxel)
-    # start_time = time.time()
     intersected_voxels = find_intersected_voxels(movable_voxel, measuring_plate, phantom_part)
     # print("intersected_voxels ", intersected_voxels)
     dose = 0.
-    # first_time = time.time() - start_time
-    # print("нахождение пересекаемых вокселей: ", first_time)
     for fixed_voxel in intersected_voxels:
         dose += contribution_to_dose(measuring_plate, movable_voxel, phantom_part, fixed_voxel)
-    # print("вычисление дозы в вокселе: ", time.time() - start_time - first_time)
     return dose

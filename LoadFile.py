@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 
-# import os
+import os
 import numpy as np
 
 
@@ -10,6 +10,7 @@ class LoadFile:
         # self.shape = shape
         self.data, self.size = self.read_file()
 
+
         # делим на слои не по z, а по y (вдоль хода пучка) [слой по y, строка, воксель в строке]:
         # self.reshaped_data = np.transpose(self.original_data, (1, 0, 2))
 
@@ -18,7 +19,7 @@ class LoadFile:
         with open(self.filename, 'rb') as f:
             data = np.fromfile(f, dtype=np.float32)
         number_of_voxels = len(data)
-        return data[::-1], number_of_voxels  # данные с системы планирования расположены в обратном порядке
+        return data[::-1], number_of_voxels
 
     def reshaped_data(self, shape):
         original_data = self.data.reshape(shape[2], shape[1], shape[0])

@@ -3,12 +3,9 @@
 import sys
 import os
 import time
-
 import numpy as np
-import multiprocessing as mp
 import json
 from PyQt5 import QtWidgets
-from PyQt5.QtCore import QObject, QThread, pyqtSignal
 import matplotlib.pyplot as plt
 import LoadFile
 import Phantom
@@ -16,41 +13,21 @@ import MeasuringPlate
 import gui_main
 
 
-class DoseCalculating(QObject):
-    finished = pyqtSignal(np.ndarray)
-    progress = pyqtSignal(list)
+# from PyQt5 import QtCore
 
-    def __init__(self, measuring_plate: MeasuringPlate.MeasuringPlate, phantom_part: Phantom.PhantomPart, filename):
-        super().__init__()
-        self.measuring_plate = measuring_plate
-        self.phantom_part = phantom_part
-        self.filename = filename
-        self.number_of_processes = mp.cpu_count()
 
-    def run(self):
-        dose_distribution = MeasuringPlate.DoseDistribution(self.measuring_plate, self.phantom_part)
-        rows_number = dose_distribution.rows_number
-        voxels_in_row_number = dose_distribution.voxels_number
-        doses = dose_distribution.doses
-        # doses = np.transpose(dose_distribution.doses, (1, 0))
-        for i in dose_distribution.dose_map():
-            # print(i[3])
-            try:
-                self.progress.emit(["строка: "+str(i[0])+"  воксель: "+str(i[1])+"  доза: "+str(i[2])+" Гр", i[3], i[4]])
-            except Exception as ex:
-                print(type(ex).__name__, ex.args)
-        with open(self.filename + ".txt", "w") as file:
-            for line in doses:
-                for value in line:
-                    file.write(str(round(value, 4)) + " ")
-                file.write("\n")
-        np.save(self.filename, doses)
-        self.finished.emit(doses)
+# class EmittingStream(QtCore.QObject):
+#
+#     textWritten = QtCore.pyqtSignal(str)
+#
+#     def write(self, text):
+#         self.textWritten.emit(str(text))
 
 
 class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
     def __init__(self):
         super().__init__()
+        # sys.stdout = EmittingStream()
         self.setupUi(self)
         self.file = None
         if os.path.exists("path.json"):
@@ -82,6 +59,14 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
         self.phantom_part = None
         self.doses = None
 
+    # def __del__(self):
+    #     # Restore sys.stdout
+    #     sys.stdout = sys.__stdout__
+    #
+    # def normalOutputWritten(self, text):
+    #     """Append text to the QTextEdit."""
+    #     self.textBrowser.append(text)
+
     def get_phantom_configuration(self):
         self.phantom = Phantom.Phantom(self.vox_set, self.tomo_shape, voxel_size=self.voxel_size)
 
@@ -101,8 +86,17 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
             self.textBrowser.setText("Загружен файл " + str(self.file[0]) + "\nКоличество вокселей:  "
                                      + str(self.vox_set.size) + "\nЗадайте размеры вокселя и форму томограммы.")
             self.shape_value_changed()
+            # self.get_phantom_configuration()
 
     def show_dialog_choose_path(self):
+        # if os.path.exists("path.json"):
+        #     print("exists")
+        #     with open("path.json", "r") as file:
+        #         home_dir = json.load(file)
+        #         print(home_dir)
+        #         print("test")
+        # else:
+        #     home_dir = os.path.abspath(os.curdir)
         self.dir_name = QtWidgets.QFileDialog.getExistingDirectory(self, 'Choose Path', self.dir_name)
         print(self.dir_name)
         with open('path.json', "w") as file:
@@ -118,8 +112,6 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
             plt.show()
             self.textBrowser.clear()
         except ValueError:
-            # except Exception as ex:
-            # print(type(ex).__name__, ex.args)
             self.textBrowser.setText("Выбран неподходящий формат файла! Выберите файл *.npy из папки "
                                      "с результатами расчётов")
 
@@ -158,63 +150,38 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
         ax.set_zlabel('Z')
         plt.show()
 
-    def report_progress(self, progress):
-        # print(progress[0], progress[1])
-        self.textBrowser.append(progress[0])
-        progress_value = progress[1]
-        self.progressBar.setValue(int(progress_value))
-        if progress[2] is not None:
-            rest_time_minutes = progress[2]//60
-            rest_time_seconds = progress[2] % 60
-            self.labelTtimeProgress.setText("осталось примерно "+str(int(rest_time_minutes)) +
-                                            " минут "+str(int(rest_time_seconds))+" секунд")
-        if int(progress_value) == 100:
-            self.labelTtimeProgress.setText("расчёт окончен")
-
-    def get_doses(self, doses):
-        self.doses = doses
-
     def calculate_dose_distribution(self):
         self.textBrowser.clear()
-        self.labelTtimeProgress.clear()
         self.shape_value_changed()
         self.get_phantom_configuration()
+        start_time = time.time()
+        dose_distribution = MeasuringPlate.DoseDistribution(self.measuring_plate, self.phantom_part)
         filename = self.save_result()
-        # dose_distribution = MeasuringPlate.DoseDistribution(self.measuring_plate, self.phantom_part)
-        # self.doses = np.transpose(dose_distribution.doses, (1, 0))
-        # print("shape doses: ", self.doses.shape)
-        # for i in dose_distribution.dose_map():
-        #     self.textBrowser.append(str(i))
-        # with open(filename + ".txt", "w") as file:
-        #     for line in self.doses:
-        #         for value in line:
-        #             file.write(str(value) + " ")
-        #         file.write("\n")
-        #
-        # np.save(filename, self.doses)
-        # self.textBrowser.append(str(time.time() - start_time) + " секунд")
-        # self.textBrowser.append("Данные автоматически сохранены в " + str(filename) + ".txt")
 
+        self.pushButton_ShowResult2D.setEnabled(True)
         try:
-            self.thread = QThread()
-            self.worker = DoseCalculating(self.measuring_plate, self.phantom_part, filename)
-            self.worker.moveToThread(self.thread)
-            self.thread.started.connect(self.worker.run)
-            self.worker.finished.connect(self.thread.quit)
-            self.worker.finished.connect(self.worker.deleteLater)
-            self.thread.finished.connect(self.thread.deleteLater)
-            self.worker.progress.connect(self.report_progress)
-            self.worker.finished.connect(self.get_doses)
-
-            self.thread.start()
-            self.pushButton_Run.setEnabled(False)
-            self.pushButton_ShowResult2D.setEnabled(False)
-            self.thread.finished.connect(lambda: self.pushButton_Run.setEnabled(True))
-            self.thread.finished.connect(lambda: self.pushButton_ShowResult2D.setEnabled(True))
+            dose_distribution.dose_map()
         except Exception as ex:
             print(type(ex).__name__, ex.args)
+        self.doses = np.transpose(dose_distribution.doses, (1, 0))
+        print("Расчёт завершён. Ожидайте вывод данных на экран приложения.")
+        # for i in dose_distribution.dose_map():
+        #     self.textBrowser.append(str(i))
+        try:
+            for i in range(self.doses.shape[0]):
+                for j in range(self.doses.shape[1]):
+                    self.textBrowser.append(str(i)+" "+str(j)+" "+str(self.doses[i, j]))
+        except Exception as ex:
+            print(type(ex).__name__, ex.args)
+        with open(filename + ".txt", "w") as file:
+            for line in self.doses:
+                for value in line:
+                    file.write(str(round(value, 4)) + " ")
+                file.write("\n")
 
-        # self.pushButton_ShowResult2D.setEnabled(True)
+        np.save(filename, self.doses)
+        self.textBrowser.append(str(time.time() - start_time) + " секунд")
+        self.textBrowser.append("Данные автоматически сохранены в " + str(filename) + ".txt")
 
     def show_dose_distribution(self):
         ax = plt.axes()
@@ -227,14 +194,14 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
     def save_result(self):
         with open("path.json", "r") as file:
             dir_name = json.load(file)
-        reversed_filename = ""
+        rfilename = ""
         for letter in self.file[0][::-1]:
             if letter != "/":
-                reversed_filename += letter
+                rfilename += letter
             else:
                 break
-        filename = dir_name + "/" + reversed_filename[:4:-1] + "_" + str(self.doubleSpinBox_PlaceY.value()) + "mm_" \
-                            + str(self.doubleSpinBox_RotX.value()) + "_" + str(self.doubleSpinBox_RotZ.value())
+        filename = dir_name + "/" + rfilename[:4:-1] + "_" + str(self.doubleSpinBox_PlaceY.value()) + "mm_" + str(
+            self.doubleSpinBox_RotX.value()) + "_" + str(self.doubleSpinBox_RotZ.value())
         return filename
 
 
