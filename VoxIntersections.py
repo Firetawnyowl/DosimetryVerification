@@ -10,6 +10,7 @@ import Geometry
 
 current_voxel = 0
 
+
 def find_neighbors(phantom_part: Phantom.PhantomPart, fixed_voxel_indexes):
     # start_time = time.time()
     # print("start finding neighbors")
@@ -144,13 +145,14 @@ def find_intersection_points_of_two_voxels(movable_voxel_points, fixed_voxel,
                                            measuring_plate: VoxelStructure.MovableVoxelStructure):
     points = []
     movable_voxel_edges = VoxelStructure.Parallelepiped.edges(movable_voxel_points)
-    fixed_voxel_plains = VoxelStructure.FixedVoxelStructure.plains(phantom_part, fixed_voxel)
+    # fixed_voxel_plains = VoxelStructure.FixedVoxelStructure.plains(phantom_part, fixed_voxel)
     fixed_voxel_points = phantom_part.voxel_corners(fixed_voxel)
+    fixed_voxel_plains = VoxelStructure.MovableVoxelStructure.plains(measuring_plate, fixed_voxel_points)
     for edge in movable_voxel_edges:
         for plane in fixed_voxel_plains:
             try:
                 point = Geometry.find_intersection_point(plane, edge[0], edge[1])
-                if Geometry.is_point_on_edge_checking(point, edge[0], edge[1]) and Geometry.is_point_in_voxel(
+                if (point is not None) and Geometry.is_point_on_edge_checking(point, edge[0], edge[1]) and Geometry.is_point_in_voxel(
                         point, fixed_voxel_points):
                     points.append(point)
             except ZeroDivisionError:
@@ -161,7 +163,7 @@ def find_intersection_points_of_two_voxels(movable_voxel_points, fixed_voxel,
         for plane in movable_voxel_plains:
             try:
                 point = Geometry.find_intersection_point(plane, edge[0], edge[1])
-                if Geometry.is_point_on_edge_checking(point, edge[0], edge[1]) and Geometry.is_point_in_voxel(
+                if (point is not None) and Geometry.is_point_on_edge_checking(point, edge[0], edge[1]) and Geometry.is_point_in_voxel(
                         point, movable_voxel_points):
                     if point not in points:
                         points.append(point)
