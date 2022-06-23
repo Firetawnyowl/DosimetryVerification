@@ -3,6 +3,7 @@
 import sys
 import os
 import time
+import multiprocessing as mp
 import numpy as np
 import json
 from PyQt5 import QtWidgets
@@ -213,4 +214,5 @@ def main():
 
 
 if __name__ == '__main__':
+    mp.freeze_support()
     main()

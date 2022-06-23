@@ -51,6 +51,7 @@ def find_parameter(plane, point1, point2):
     a, b, c, d = plane
     x1, y1, z1 = point1
     x2, y2, z2 = point2
+
     m = (a*(x2 - x1) + b*(y2 - y1) + c*(z2 - z1))
     if m != 0:
         l_param = -(a*x1 + b*y1 + c*z1 + d)/m

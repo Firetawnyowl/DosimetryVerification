@@ -72,11 +72,11 @@ class FixedVoxelStructure(VoxelStructure):
     def __init__(self, data, voxel_size):
         super().__init__(data, voxel_size)
 
-    def plains(self, voxel):
-        x_coordinates, y_coordinates, z_coordinates = self.voxel_boundaries(voxel)
-        plains = ((0, 0, 1, z_coordinates[0]), (0, 0, 1, z_coordinates[1]), (0, 1, 0, y_coordinates[0]),
-                  (0, 1, 0, y_coordinates[1]), (1, 0, 0, x_coordinates[0]), (1, 0, 0, x_coordinates[1]))
-        return plains
+    # def plains(self, voxel):
+    #     x_coordinates, y_coordinates, z_coordinates = self.voxel_boundaries(voxel)
+    #     plains = ((0, 0, 1, z_coordinates[0]), (0, 0, 1, z_coordinates[1]), (0, 1, 0, y_coordinates[0]),
+    #               (0, 1, 0, y_coordinates[1]), (1, 0, 0, x_coordinates[0]), (1, 0, 0, x_coordinates[1]))
+    #     return plains
 
 
 class MovableVoxelStructure(VoxelStructure):

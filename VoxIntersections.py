@@ -2,6 +2,7 @@
 
 import time
 import numpy as np
+import matplotlib.pyplot as plt
 import scipy.spatial.qhull
 from scipy.spatial import ConvexHull
 import Phantom
@@ -78,15 +79,11 @@ def find_first_intersected_voxel(phantom_part: Phantom.PhantomPart, movable_voxe
                 return current_index
 
 
-def check_neighbors(movable_voxel_corners, movable_voxel, phantom_part):
-    # start_time = time.time()
-    # print("start checking neighbors")
+def check_neighbors(movable_voxel_corners, movable_voxel, phantom_part, is_cubic=True):
     first_intersected_voxel_index = find_first_intersected_voxel(phantom_part, movable_voxel, movable_voxel_corners)
-    # print("first intersected voxel: ", first_intersected_voxel_index)
     intersected_voxels_indexes = [first_intersected_voxel_index]
     check = True
     current_intersected_voxel_index = first_intersected_voxel_index
-    # intersections = []
     not_intersected_neighbors = []
     while check:
         neighbors = find_neighbors(phantom_part, current_intersected_voxel_index)
@@ -96,39 +93,70 @@ def check_neighbors(movable_voxel_corners, movable_voxel, phantom_part):
             neighbor_index = neighbor[1]
             if neighbor_index not in not_intersected_neighbors:
                 if check_intersection(neighbor_voxel_corners, movable_voxel_corners):
+                    if not is_cubic:
+                        neighbors_of_intersected_voxel = find_neighbors(phantom_part, neighbor_index)
+                        for current_neighbor in neighbors_of_intersected_voxel:
+                            if current_neighbor[1] not in intersected_voxels_indexes:
+                                intersected_voxels_indexes.append(current_neighbor[1])
                     if neighbor_index not in intersected_voxels_indexes:
                         intersected_voxels_indexes.append(neighbor_index)
                         current_intersected_voxel_index = neighbor_index
-                        # voxel = phantom_part.data[neighbor_index[0], neighbor_index[1], neighbor_index[2]]
-                        # intersections.append(voxel)
                     else:
                         check = False
                 else:
                     not_intersected_neighbors.append(neighbor_index)
-    # print(not_intersected_neighbors)
     intersections = []
     for voxel_index in intersected_voxels_indexes:
         voxel = phantom_part.data[voxel_index[0], voxel_index[1], voxel_index[2]]
         intersections.append(voxel)
-        # print("intersections", intersections)
-    # print("end checking neighbors:  %s seconds" % (time.time() - start_time))
-    # print("--- %s seconds ---" % (time.time() - start_time))
-    # print("Пересекаемые воксели:", intersections)
     return intersections
+
+# def check_neighbors(movable_voxel_corners, intersected_voxels_indexes,
+#                     not_intersected_neighbors, phantom_part, current_intersected_voxel_index):
+#     count = len(intersected_voxels_indexes)
+#     neighbors = find_neighbors(phantom_part, current_intersected_voxel_index)
+#     new_intersected_neighbors = []
+#     for neighbor in neighbors:
+#         neighbor_voxel = neighbor[0]
+#         neighbor_voxel_corners = phantom_part.voxel_corners(neighbor_voxel)
+#         neighbor_index = neighbor[1]
+#         if neighbor_index not in not_intersected_neighbors:
+#             if check_intersection(neighbor_voxel_corners, movable_voxel_corners):
+#                 if neighbor_index not in intersected_voxels_indexes:
+#                     intersected_voxels_indexes.append(neighbor_index)
+#                     new_intersected_neighbors.append(neighbor_index)
+#             else:
+#                 not_intersected_neighbors.append(neighbor_index)
+#     if len(intersected_voxels_indexes) > count:
+#         for neighbor in new_intersected_neighbors:
+#             check_neighbors(movable_voxel_corners, intersected_voxels_indexes, not_intersected_neighbors,
+#                             phantom_part, neighbor)
+#     return intersected_voxels_indexes
+#
+#
+# def find_intersected_neighbors(movable_voxel_corners, movable_voxel, phantom_part):
+#     first_intersected_voxel_index = find_first_intersected_voxel(phantom_part, movable_voxel, movable_voxel_corners)
+#     intersected_voxels_indexes = [first_intersected_voxel_index]
+#     current_intersected_voxel_index = first_intersected_voxel_index
+#     not_intersected_neighbors = []
+#     intersected_voxels_indexes = check_neighbors(movable_voxel_corners, intersected_voxels_indexes,
+#                                                  not_intersected_neighbors, phantom_part,
+#                                                  current_intersected_voxel_index)
+#     intersections = []
+#     for voxel_index in intersected_voxels_indexes:
+#         voxel = phantom_part.data[voxel_index[0], voxel_index[1], voxel_index[2]]
+#         intersections.append(voxel)
+#     return intersections
 
 
 def find_intersected_voxels(movable_voxel, measuring_plate: VoxelStructure.MovableVoxelStructure,
                             phantom_part: Phantom.PhantomPart):
-    # start_time = time.time()
-    # print("start finding intersected voxels")
-    # movable_voxel_before_rotation = measuring_plate.voxel_corners(movable_voxel)
     movable_voxel_corners = measuring_plate.voxel_corners_after_rotation(movable_voxel)
-    # print("corners before rotation: ", movable_voxel_before_rotation)
-    # print("movable_voxel_corners: ", movable_voxel_corners)
-    intersections = check_neighbors(movable_voxel_corners, movable_voxel, phantom_part)
-    # print("intersected_voxels: ", intersections)
-    # print("end finding intersected voxels:  %s seconds" % (time.time() - start_time))
-    # print("--- %s seconds ---" % (time.time() - start_time))
+    if measuring_plate.voxel_size[0] == measuring_plate.voxel_size[1] == measuring_plate.voxel_size[2]:
+        is_cubic = True
+    else:
+        is_cubic = False
+    intersections = check_neighbors(movable_voxel_corners, movable_voxel, phantom_part, is_cubic)
     return intersections
 
 
@@ -137,8 +165,9 @@ def find_intersection_points_of_two_voxels(movable_voxel_points, fixed_voxel,
                                            measuring_plate: VoxelStructure.MovableVoxelStructure):
     points = []
     movable_voxel_edges = VoxelStructure.Parallelepiped.edges(movable_voxel_points)
-    fixed_voxel_plains = VoxelStructure.FixedVoxelStructure.plains(phantom_part, fixed_voxel)
+    #fixed_voxel_plains = VoxelStructure.FixedVoxelStructure.plains(phantom_part, fixed_voxel)
     fixed_voxel_points = phantom_part.voxel_corners(fixed_voxel)
+    fixed_voxel_plains = VoxelStructure.MovableVoxelStructure.plains(measuring_plate, fixed_voxel_points)
     for edge in movable_voxel_edges:
         for plane in fixed_voxel_plains:
             try:
@@ -198,9 +227,14 @@ def contribution_to_dose(measuring_plate: VoxelStructure.MovableVoxelStructure, 
                 intersection_volume = 0
         else:
             intersection_volume = 0
-        # print("intersection volume: ", intersection_volume)
         # print(fixed_voxel, "объём пересекаемой области: ", intersection_volume)
         dose_contribution = fixed_voxel[3] * intersection_volume / voxel_volume
+
+        # ax = plt.axes(projection='3d')
+        # VoxelStructure.Parallelepiped.plot_edges(ax, measuring_plate.voxel_corners_after_rotation(movable_voxel), "orange")
+        # VoxelStructure.Parallelepiped.plot_edges(ax, phantom_part.voxel_corners(fixed_voxel[1]), "red")
+        # plt.show()
+
         # print("dose contribution by voxel ", fixed_voxel, dose_contribution)
     return dose_contribution
 
