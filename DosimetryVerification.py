@@ -47,6 +47,7 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
         self.pushButton_Show3D.clicked.connect(lambda: self.show_3d())
         self.pushButton_Run.clicked.connect(lambda: self.calculate_dose_distribution())
         self.pushButton_ShowResult2D.clicked.connect(lambda: self.show_dose_distribution())
+        self.pushButton_showLayer3D.clicked.connect(lambda: self.show_3d_original_layer())
 
         self.voxel_size = (self.doubleSpinBoxXSize.value(),
                            self.doubleSpinBoxYSize.value(),
@@ -54,11 +55,17 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
         self.doubleSpinBoxXSize.valueChanged.connect(lambda: self.change_voxel_size())
         self.doubleSpinBoxYSize.valueChanged.connect(lambda: self.change_voxel_size())
         self.doubleSpinBoxZSize.valueChanged.connect(lambda: self.change_voxel_size())
+        self.radioButton_X.clicked.connect(lambda: self.choose_axis())
+        self.radioButton_Y.clicked.connect(lambda: self.choose_axis())
+        self.radioButton_Z.clicked.connect(lambda: self.choose_axis())
+        self.pushButton_layerDoseMap.clicked.connect(lambda: self.dose_map_in_layer())
+        self.pushButton_saveLayer.clicked.connect(lambda: self.dose_map_in_layer(mode="save"))
 
         self.phantom = None
         self.measuring_plate = None
         self.phantom_part = None
         self.doses = None
+        self.axis = "Y"
 
     # def __del__(self):
     #     # Restore sys.stdout
@@ -116,6 +123,18 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
             self.textBrowser.setText("Выбран неподходящий формат файла! Выберите файл *.npy из папки "
                                      "с результатами расчётов")
 
+    def choose_axis(self):
+        self.spinBox_layerNumber.setValue(0)
+        if self.radioButton_X.isChecked():
+            self.axis = "X"
+            self.spinBox_layerNumber.setMaximum(self.spinBoxShapeX.value()-1)
+        elif self.radioButton_Y.isChecked():
+            self.axis = "Y"
+            self.spinBox_layerNumber.setMaximum(self.spinBoxShapeY.value()-1)
+        elif self.radioButton_Z.isChecked():
+            self.axis = "Z"
+            self.spinBox_layerNumber.setMaximum(self.spinBoxShapeZ.value()-1)
+
     def shape_value_changed(self):
         shape_x = self.spinBoxShapeX.value()
         shape_y = self.spinBoxShapeY.value()
@@ -127,10 +146,19 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
                                         + "x" + str(shape_z))
                 self.pushButton_Show3D.setEnabled(False)
                 self.pushButton_Run.setEnabled(False)
+                self.pushButton_showLayer3D.setEnabled(False)
+                self.pushButton_layerDoseMap.setEnabled(False)
+                self.pushButton_saveLayer.setEnabled(False)
             else:
                 self.textBrowser.clear()
                 self.pushButton_Show3D.setEnabled(True)
                 self.pushButton_Run.setEnabled(True)
+                self.pushButton_showLayer3D.setEnabled(True)
+                self.pushButton_layerDoseMap.setEnabled(True)
+                self.pushButton_saveLayer.setEnabled(True)
+                self.phantom = Phantom.Phantom(self.vox_set, (shape_x, shape_y, shape_z), voxel_size=self.voxel_size)
+                self.choose_axis()
+
         else:
             self.textBrowser.setText("Файл не выбран! Пожалуйста, выберите файл\n (Файл --> Загрузить файл *.dose)")
         self.tomo_shape = (shape_x, shape_y, shape_z)
@@ -150,6 +178,41 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
         plt.show()
+
+    def show_3d_original_layer(self):
+        layer_index = self.spinBox_layerNumber.value()
+        ax = plt.axes(projection='3d')
+        self.phantom.plot_edges(ax)
+        self.phantom.plot_layer(ax, self.axis, layer_index, "red")
+        ax.set_xlabel('X')
+        ax.set_ylabel('Y')
+        ax.set_zlabel('Z')
+        plt.show()
+
+    def dose_map_in_layer(self, mode="show"):
+        layer_index = self.spinBox_layerNumber.value()
+        if self.axis == "X":
+            layer = self.phantom.original_data_layers[:, :, layer_index]
+        elif self.axis == "Z":
+            layer = self.phantom.original_data_layers[layer_index, :, :]
+        else:
+            layer = self.phantom.original_data_layers[:, layer_index, :]
+        if mode == "show":
+            ax2 = plt.axes()
+            ax2.imshow(layer)
+            plt.show()
+        if mode == "save":
+            with open("path.json", "r") as file:
+                dir_name = json.load(file)
+                filename = "layer_"+str(layer_index)+"_axis_"+self.axis
+            full_name = dir_name+"/"+self.short_filename() + "_" + filename
+            with open(full_name + ".txt", "w") as file:
+                for line in layer:
+                    for value in line:
+                        file.write(str(round(value, 4)) + " ")
+                    file.write("\n")
+            np.save(full_name, layer)
+            self.textBrowser.append("Файл сохранён в " + str(full_name) + ".txt и "+str(full_name) + ".npy")
 
     def calculate_dose_distribution(self):
         self.textBrowser.clear()
@@ -192,16 +255,20 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
         self.textBrowser.append("Картинка автоматически сохранена в " + str(filename) + ".png")
         plt.show()
 
-    def save_result(self):
-        with open("path.json", "r") as file:
-            dir_name = json.load(file)
+    def short_filename(self):
         rfilename = ""
         for letter in self.file[0][::-1]:
             if letter != "/":
                 rfilename += letter
             else:
                 break
-        filename = dir_name + "/" + rfilename[:4:-1] + "_" + str(self.doubleSpinBox_PlaceY.value()) + "mm_" + str(
+        filename = rfilename[:4:-1]
+        return filename
+
+    def save_result(self):
+        with open("path.json", "r") as file:
+            dir_name = json.load(file)
+        filename = dir_name + "/" + self.short_filename() + "_" + str(self.doubleSpinBox_PlaceY.value()) + "mm_" + str(
             self.doubleSpinBox_RotX.value()) + "_" + str(self.doubleSpinBox_RotZ.value())
         return filename
 

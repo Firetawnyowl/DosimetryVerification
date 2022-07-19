@@ -19,6 +19,38 @@ class Phantom:
         max_y = min_y + self.voxel_size[1]
         return min_y, max_y
 
+    # def layer_x_borders(self, layer_index):
+    #     min_x = self.voxel_size[0]*(layer_index - self.shape[0]/2)
+    #     max_x = min_x + self.voxel_size[0]
+    #     return min_x, max_x
+    #
+    # def layer_z_borders(self, layer_index):
+    #     min_z = self.voxel_size[2]*(layer_index - self.shape[2]/2)
+    #     max_z = min_z + self.voxel_size[2]
+    #     return min_z, max_z
+
+    def layer_corners(self, axis, index):
+        if axis == "X":
+            relative_corners = VoxelStructure.Parallelepiped.corners_relative_to_center([self.voxel_size[0],
+                                                                                        self.voxel_size[1]*self.shape[1],
+                                                                                        self.voxel_size[2]*self.shape[2]])
+            center = (self.voxel_size[0]*(index-self.shape[0]/2 + 0.5), self.voxel_size[1]*self.shape[1]/2, 0)
+        elif axis == "Y":
+            relative_corners = VoxelStructure.Parallelepiped.corners_relative_to_center([self.voxel_size[0]*self.shape[0],
+                                                                                         self.voxel_size[1],
+                                                                                         self.voxel_size[2]*self.shape[2]])
+            center = (0, self.voxel_size[1]*(index + 0.5), 0)
+        else:
+            relative_corners = VoxelStructure.Parallelepiped.corners_relative_to_center([self.voxel_size[0]*self.shape[0],
+                                                                                         self.voxel_size[1]*self.shape[1],
+                                                                                         self.voxel_size[2]])
+            center = (0, self.voxel_size[1]*self.shape[1]/2, self.voxel_size[2]*(index-self.shape[2]/2 + 0.5))
+        corners = VoxelStructure.Parallelepiped.corners(relative_corners, center)
+        return corners
+
+    def plot_layer(self, ax, axis, index, color):
+        VoxelStructure.Parallelepiped.plot_edges(ax, self.layer_corners(axis, index), color)
+
     def find_layers(self, measuring_plate_boundaries):
         min_layer = max_layer = 0
         for layer_index in range(self.shape[1]):
