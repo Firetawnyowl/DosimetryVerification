@@ -30,15 +30,18 @@ class MeasuringPlatePlacement:
         for i in [x_relative_to_center, -x_relative_to_center]:
             for j in [y_relative_to_center, -y_relative_to_center]:
                 for k in [z_relative_to_center, -z_relative_to_center]:
-                    points.append([i, j, k])
+                    points.append(np.array([i, j, k]))
         return np.array(points)
 
     def many_points_rotation(self, points):
         rotated_points = []
-        for point in points:
-            new_point = Geometry.point_rotation(point, self.rotation_matrix)
-            rotated_points.append(new_point)
-        return np.array(rotated_points)
+        try:
+            for point in points:
+                new_point = Geometry.point_rotation(point, self.rotation_matrix)
+                rotated_points.append(new_point)
+            return np.array(rotated_points)
+        except Exception as ex:
+            print(type(ex).__name__, ex.args)
 
     def corners_relative_to_center_after_rotation(self):
         points = self.corners_relative_to_center_before_rotation()
@@ -84,7 +87,7 @@ class MeasuringPlate(MeasuringPlatePlacement, VoxelStructure.MovableVoxelStructu
                 vox_y = self.y_coordinate
                 vox_z = self.voxel_size[2] * (line_number + 0.5) - (self.number_of_voxels_by_z *
                                                                     self.voxel_size[2] / 2)
-                structure[voxel_number, line_number] = [vox_x, vox_y, vox_z]
+                structure[voxel_number, line_number] = np.array([vox_x, vox_y, vox_z])
         return structure
 
     def plot_voxel(self, ax, index):
@@ -96,6 +99,7 @@ class MeasuringPlate(MeasuringPlatePlacement, VoxelStructure.MovableVoxelStructu
 class DoseDistribution:
     def __init__(self, measuring_plate: MeasuringPlate, phantom_part: Phantom.PhantomPart):
         self.measuring_plate = measuring_plate
+        self.max_vox_size = max(self.measuring_plate.voxel_size)
         self.plate_structure = measuring_plate.structure
         self.phantom_part = phantom_part
         # self.data = self.dose_map()
@@ -107,13 +111,12 @@ class DoseDistribution:
         rows_number = self.plate_structure.shape[1]
         voxels_number = self.plate_structure.shape[0]
         max_x, min_x, max_z, min_z = self.phantom_part.nonzero_boundaries
-        vox_x = self.measuring_plate.voxel_size[0]
-        vox_z = self.measuring_plate.voxel_size[2]
         voxels = []
         for i in range(voxels_number):
             for j in range(rows_number):
-                voxel = self.plate_structure[i, j]
-                if max_x+vox_x/2 > voxel[0] > min_x-vox_x/2 and max_z+vox_z/2 > voxel[2] > min_z-vox_z/2:
+                voxel = VoxelStructure.MovableVoxelStructure.voxel_center_after_rotation(self.measuring_plate,
+                                                                                         self.plate_structure[i, j])
+                if max_x+self.max_vox_size*2 > voxel[0] > min_x-self.max_vox_size*2 and max_z+self.max_vox_size*2 > voxel[2] > min_z-self.max_vox_size*2:
                     voxels.append([i, j])
         return np.array(voxels)
 
@@ -164,6 +167,9 @@ class DoseDistribution:
     def dose_in_nonzero_voxel(self, voxels, doses):
         # nonzero_voxels = self.nonzero_structure()
         # for voxel in nonzero_voxels:
+        is_cubic = False
+        if self.measuring_plate.voxel_size[0] == self.measuring_plate.voxel_size[1] == self.measuring_plate.voxel_size[2]:
+            is_cubic = True
         number_of_nonzero_voxels = len(self.nonzero_structure())
         while not voxels.empty():
             voxel = voxels.get()
@@ -175,13 +181,16 @@ class DoseDistribution:
                 #                                                           self.phantom_part)
                 dose = VoxIntersections.dose_in_movable_voxel(self.measuring_plate,
                                                               self.plate_structure[i, j],
-                                                              self.phantom_part)
+                                                              self.phantom_part,
+                                                              is_cubic)
                 dose_in_voxel = [i, j, dose]
                 doses.put(dose_in_voxel)
                 # print(dose_in_voxel)
                 # yield i, j, self.doses[i, j]
             except TypeError:
                 pass
+            # except Exception as ex:
+                # print("номер вокселя", i, j)
                 # print(type(ex).__name__, ex.args)
                 # print(i, j, 0.0)
                 # yield i, j, 0.0

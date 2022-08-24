@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
 
 import numpy as np
-
+from numba import njit
 import Geometry
 
 
 class Parallelepiped:
 
     @staticmethod
+    @njit(cache=True)
     def corners_relative_to_center(size):
         x_relative_to_center = size[0] / 2
         y_relative_to_center = size[1] / 2
@@ -20,6 +21,7 @@ class Parallelepiped:
         return np.array(points)
 
     @staticmethod
+    @njit(cache=True)
     def corners(relative_corners, center):
         corners = relative_corners
         for point in corners:
@@ -29,25 +31,31 @@ class Parallelepiped:
         return corners
 
     @staticmethod
+    @njit(cache=True)
     def edges(corners):
-        edges = [[corners[0], corners[1]],
-                 [corners[2], corners[3]],
-                 [corners[0], corners[2]],
-                 [corners[3], corners[1]],
-                 [corners[4], corners[5]],
-                 [corners[6], corners[7]],
-                 [corners[4], corners[6]],
-                 [corners[5], corners[7]],
-                 [corners[0], corners[4]],
-                 [corners[1], corners[5]],
-                 [corners[2], corners[6]],
-                 [corners[3], corners[7]]]
-        return np.array(edges)
+        #corners = np.array(corners_l)
+        # print(corners)
+        edges = np.array([[[corners[0][0], corners[0][1], corners[0][2]], [corners[1][0], corners[1][1], corners[1][2]]],
+                          [[corners[2][0], corners[2][1], corners[2][2]], [corners[3][0], corners[3][1], corners[3][2]]],
+                          [[corners[0][0], corners[0][1], corners[0][2]], [corners[2][0], corners[2][1], corners[2][2]]],
+                          [[corners[3][0], corners[3][1], corners[3][2]], [corners[1][0], corners[1][1], corners[1][2]]],
+                          [[corners[4][0], corners[4][1], corners[4][2]], [corners[5][0], corners[5][1], corners[5][2]]],
+                          [[corners[6][0], corners[6][1], corners[6][2]], [corners[7][0], corners[7][1], corners[7][2]]],
+                          [[corners[4][0], corners[4][1], corners[4][2]], [corners[6][0], corners[6][1], corners[6][2]]],
+                          [[corners[5][0], corners[5][1], corners[5][2]], [corners[7][0], corners[7][1], corners[7][2]]],
+                          [[corners[0][0], corners[0][1], corners[0][2]], [corners[4][0], corners[4][1], corners[4][2]]],
+                          [[corners[1][0], corners[1][1], corners[1][2]], [corners[5][0], corners[5][1], corners[5][2]]],
+                          [[corners[2][0], corners[2][1], corners[2][2]], [corners[6][0], corners[6][1], corners[6][2]]],
+                          [[corners[3][0], corners[3][1], corners[3][2]], [corners[7][0], corners[7][1], corners[7][2]]]])
+        return edges
 
     @staticmethod
     def plot_edges(ax, points, color="blue"):
-        for p in Parallelepiped.edges(points):
-            ax.plot(p[:, 0], p[:, 1], p[:, 2], color=color)
+        try:
+            for p in Parallelepiped.edges(np.array(points)):
+                ax.plot(p[:, 0], p[:, 1], p[:, 2], color=color)
+        except Exception as ex:
+            print(type(ex).__name__, ex.args)
 
 
 class VoxelStructure:
@@ -60,12 +68,6 @@ class VoxelStructure:
 
     def voxel_corners(self, voxel):
         return Parallelepiped.corners(self.voxel_corners_relative_to_center(), (voxel[0], voxel[1], voxel[2]))
-
-    def voxel_boundaries(self, voxel):
-        x_coordinates = [voxel[0] + self.voxel_size[0] / 2, voxel[0] - self.voxel_size[0] / 2]
-        y_coordinates = [voxel[1] + self.voxel_size[1] / 2, voxel[1] - self.voxel_size[1] / 2]
-        z_coordinates = [voxel[2] + self.voxel_size[2] / 2, voxel[2] - self.voxel_size[2] / 2]
-        return x_coordinates, y_coordinates, z_coordinates
 
 
 class FixedVoxelStructure(VoxelStructure):
@@ -85,7 +87,7 @@ class MovableVoxelStructure(VoxelStructure):
         self.rot_matrix = Geometry.rotation_matrix(x_rot, z_rot)
 
     def voxel_center_after_rotation(self, voxel):
-        old_center = [voxel[0], 0., voxel[2]]
+        old_center = np.array([voxel[0], 0., voxel[2]])
         new_center = Geometry.point_rotation(old_center, self.rot_matrix)
         new_center[1] += voxel[1]
         return new_center
@@ -103,16 +105,17 @@ class MovableVoxelStructure(VoxelStructure):
 
     @staticmethod
     def plains_points(corners):
-        plains_points = [[corners[0], corners[1], corners[3]],
-                         [corners[4], corners[5], corners[7]],
-                         [corners[1], corners[3], corners[7]],
-                         [corners[0], corners[2], corners[6]],
-                         [corners[0], corners[1], corners[5]],
-                         [corners[3], corners[2], corners[6]]]
+        plains_points = np.array([[corners[0], corners[1], corners[3]],
+                                  [corners[4], corners[5], corners[7]],
+                                  [corners[1], corners[3], corners[7]],
+                                  [corners[0], corners[2], corners[6]],
+                                  [corners[0], corners[1], corners[5]],
+                                  [corners[3], corners[2], corners[6]]])
         return plains_points
 
-    def plains(self, corners):
-        pl_points = self.plains_points(corners)
+    @staticmethod
+    def plains(corners):
+        pl_points = MovableVoxelStructure.plains_points(corners)
         plains = []
         for plain in pl_points:
             x1, y1, z1 = plain[0][0], plain[0][1], plain[0][2]
@@ -125,4 +128,4 @@ class MovableVoxelStructure(VoxelStructure):
             d = -(a*x1 + b*y1 + c*z1)
             plain_parameters = [a, b, c, d]
             plains.append(plain_parameters)
-        return plains
+        return np.array(plains)

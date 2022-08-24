@@ -7,6 +7,7 @@ import multiprocessing as mp
 import numpy as np
 import json
 from PyQt5 import QtWidgets
+import matplotlib
 import matplotlib.pyplot as plt
 import LoadFile
 import Phantom
@@ -122,6 +123,8 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
         except ValueError:
             self.textBrowser.setText("Выбран неподходящий формат файла! Выберите файл *.npy из папки "
                                      "с результатами расчётов")
+        except FileNotFoundError:
+            self.textBrowser.setText("Файл не был выбран.")
 
     def choose_axis(self):
         self.spinBox_layerNumber.setValue(0)
@@ -209,7 +212,7 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
             with open(full_name + ".txt", "w") as file:
                 for line in layer:
                     for value in line:
-                        file.write(str(round(value, 4)) + " ")
+                        file.write(str("%.4f" % round(value, 4)) + " ")
                     file.write("\n")
             np.save(full_name, layer)
             self.textBrowser.append("Файл сохранён в " + str(full_name) + ".txt и "+str(full_name) + ".npy")
@@ -240,7 +243,7 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
         with open(filename + ".txt", "w") as file:
             for line in self.doses:
                 for value in line:
-                    file.write(str(round(value, 4)) + " ")
+                    file.write(str("%.4f" % round(value, 4)) + " ")
                 file.write("\n")
 
         np.save(filename, self.doses)

@@ -101,9 +101,10 @@ class Phantom:
                     y_coordinate_of_center = self.voxel_size[1] * (layer_num + 0.5)
                     z_coordinate_of_center = self.voxel_size[2] * (row_num + 0.5) - (self.shape[2] *
                                                                                      self.voxel_size[2] / 2)
-                    structure[layer_index, row_num, voxel_num] = [x_coordinate_of_center, y_coordinate_of_center,
-                                                                  z_coordinate_of_center,
-                                                                  self.dose_data[layer_num, row_num, voxel_num]]
+                    structure[layer_index, row_num, voxel_num] = np.array([x_coordinate_of_center,
+                                                                           y_coordinate_of_center,
+                                                                           z_coordinate_of_center,
+                                                                        self.dose_data[layer_num, row_num, voxel_num]])
         return np.array(structure)
 
     def corners(self):
@@ -124,8 +125,8 @@ class PhantomPart(VoxelStructure.FixedVoxelStructure):
         self.y_coordinate = self.voxel_size[1] * (min_layer_index + (max_layer_index - min_layer_index) / 2)
 
     def plot_edges(self, ax):
-        size = [self.data.shape[2]*self.voxel_size[0], self.data.shape[0]*self.voxel_size[1],
-                self.data.shape[1]*self.voxel_size[2]]
+        size = np.array([self.data.shape[2]*self.voxel_size[0], self.data.shape[0]*self.voxel_size[1],
+                         self.data.shape[1]*self.voxel_size[2]])
 
         relative_corners = VoxelStructure.Parallelepiped.corners_relative_to_center(size)
 
@@ -153,4 +154,5 @@ class PhantomPart(VoxelStructure.FixedVoxelStructure):
             nonzero_boundaries = self.nonzero_part_boundaries(one_dim_data_nonzero)
         else:
             nonzero_boundaries = (0, 0, 0, 0)
+        # print("nonzero boundaries ", nonzero_boundaries)
         return nonzero_boundaries, nonzero_part
