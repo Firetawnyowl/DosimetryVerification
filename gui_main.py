@@ -300,7 +300,7 @@ class Ui_MainWindow(object):
         self.menu.setTitle(_translate("MainWindow", "Файл"))
         self.action_LoadTomo.setText(_translate("MainWindow", "Загрузить файл *.dose"))
         self.action_ChoosePath.setText(_translate("MainWindow", "Выбрать путь сохранения"))
-        self.action.setText(_translate("MainWindow", "Открыть сохранённую диаграмму *.npy"))
+        self.action.setText(_translate("MainWindow", "Открыть сохранённую диаграмму *.jnpy"))
 
 
 if __name__ == "__main__":

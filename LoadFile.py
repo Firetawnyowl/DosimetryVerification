@@ -19,7 +19,8 @@ class LoadFile:
         with open(self.filename, 'rb') as f:
             data = np.fromfile(f, dtype=np.float32)
         number_of_voxels = len(data)
-        return data[::-1], number_of_voxels
+        return data, number_of_voxels
+        # return data[::-1], number_of_voxels
 
     def reshaped_data(self, shape):
         original_data = self.data.reshape(shape[2], shape[1], shape[0])

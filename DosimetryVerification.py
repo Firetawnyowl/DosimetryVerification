@@ -114,14 +114,18 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
     def show_dialog_visualise_numpy(self):
         try:
             dose_file = QtWidgets.QFileDialog.getOpenFileName(self, 'Open numpy file', self.dir_name)
-            doses = np.load(dose_file[0])
+            #doses = np.load(dose_file[0])
+            with open(dose_file[0], "r") as file:
+                doses = json.load(file)
+            layer_dosemap = np.array(doses[0])
+            extent = doses[1]
             plt.figure(num=(str(dose_file[0])[len(self.dir_name) + 1:]))
             ax1 = plt.axes()
-            ax1.imshow(doses)
+            ax1.imshow(layer_dosemap, origin="lower", extent=extent)
             plt.show()
             self.textBrowser.clear()
         except ValueError:
-            self.textBrowser.setText("Выбран неподходящий формат файла! Выберите файл *.npy из папки "
+            self.textBrowser.setText("Выбран неподходящий формат файла! Выберите файл *.jnpy из папки "
                                      "с результатами расчётов")
         except FileNotFoundError:
             self.textBrowser.setText("Файл не был выбран.")
@@ -196,26 +200,53 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
         layer_index = self.spinBox_layerNumber.value()
         if self.axis == "X":
             layer = self.phantom.original_data_layers[:, :, layer_index]
+            extent = [0, self.tomo_shape[1] * self.voxel_size[1], 0, self.tomo_shape[2] * self.voxel_size[2]]
+            pixelsperline = self.tomo_shape[1]
+            linesperimage = self.tomo_shape[2]
+            xresolution = self.voxel_size[1]
+            yresolution = self.voxel_size[2]
         elif self.axis == "Z":
             layer = self.phantom.original_data_layers[layer_index, :, :]
+            extent = [0, self.tomo_shape[0] * self.voxel_size[0], 0, self.tomo_shape[1] * self.voxel_size[1]]
+            pixelsperline = self.tomo_shape[0]
+            linesperimage = self.tomo_shape[1]
+            xresolution = self.voxel_size[0]
+            yresolution = self.voxel_size[1]
         else:
             layer = self.phantom.original_data_layers[:, layer_index, :]
+            extent = [0, self.tomo_shape[0] * self.voxel_size[0], 0, self.tomo_shape[2] * self.voxel_size[2]]
+            pixelsperline = self.tomo_shape[0]
+            linesperimage = self.tomo_shape[2]
+            xresolution = self.voxel_size[0]
+            yresolution = self.voxel_size[2]
         if mode == "show":
             ax2 = plt.axes()
-            ax2.imshow(layer)
+            # ax2.imshow(layer, origin="lower")
+            ax2.imshow(layer, origin="lower", extent=extent)
             plt.show()
         if mode == "save":
             with open("path.json", "r") as file:
                 dir_name = json.load(file)
                 filename = "layer_"+str(layer_index)+"_axis_"+self.axis
             full_name = dir_name+"/"+self.short_filename() + "_" + filename
-            with open(full_name + ".txt", "w") as file:
-                for line in layer:
+            with open(full_name + ".dat", "w") as file:
+                file.write("PTW-Image File Format\n"+
+                           "VERSION		1.0\n"+
+                           "PIXELSPERLINE "+str(pixelsperline)+"\n"+
+                           "LINESPERIMAGE "+str(linesperimage)+"\n"+
+                           "XRESOLUTION "+ str(xresolution).replace(".", ",")+"\n"+
+                           "YRESOLUTION "+ str(yresolution).replace(".", ",")+"\n"+
+                           "OFFSET		0,00\n"+
+                           "UNIT		Gy\n\n")
+                for line in np.flip(layer, 0):
                     for value in line:
                         file.write(str("%.4f" % round(value, 4)) + " ")
                     file.write("\n")
-            np.save(full_name, layer)
-            self.textBrowser.append("Файл сохранён в " + str(full_name) + ".txt и "+str(full_name) + ".npy")
+            # np.save(full_name, layer)
+            layer_ext = [layer.tolist(), extent]
+            with open(full_name+".jnpy", "w") as file:
+                json.dump(layer_ext, file)
+            self.textBrowser.append("Файл сохранён в " + str(full_name) + ".dat и "+str(full_name) + ".jnpy")
 
     def calculate_dose_distribution(self):
         self.textBrowser.clear()
@@ -240,22 +271,37 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
                     self.textBrowser.append(str(i)+" "+str(j)+" "+str(self.doses[i, j]))
         except Exception as ex:
             print(type(ex).__name__, ex.args)
-        with open(filename + ".txt", "w") as file:
-            for line in self.doses:
+        pixelsperline = self.tomo_shape[0]
+        linesperimage = self.tomo_shape[2]
+        xresolution = self.voxel_size[0]
+        yresolution = self.voxel_size[2]
+        with open(filename + ".dat", "w") as file:
+            file.write("PTW-Image File Format\n" +
+                       "VERSION		1.0\n" +
+                       "PIXELSPERLINE " + str(pixelsperline) + "\n" +
+                       "LINESPERIMAGE " + str(linesperimage) + "\n" +
+                       "XRESOLUTION " + str(xresolution).replace(".", ",") + "\n" +
+                       "YRESOLUTION " + str(yresolution).replace(".", ",") + "\n" +
+                       "OFFSET		0,00\n" +
+                       "UNIT		Gy\n\n")
+            for line in np.flip(self.doses, 0):
                 for value in line:
                     file.write(str("%.4f" % round(value, 4)) + " ")
                 file.write("\n")
 
-        np.save(filename, self.doses)
+        # np.save(filename, self.doses)
+        layer_ext = [self.doses.tolist(), [0, self.tomo_shape[0] * self.voxel_size[0], 0, self.tomo_shape[2] *
+                                           self.voxel_size[2]]]
+        with open(filename + ".jnpy", "w") as file:
+            json.dump(layer_ext, file)
         self.textBrowser.append(str(time.time() - start_time) + " секунд")
-        self.textBrowser.append("Данные автоматически сохранены в " + str(filename) + ".txt")
+        self.textBrowser.append("Данные автоматически сохранены в " + str(filename) + ".dat и в " +
+                                str(filename)+".jnpy")
 
     def show_dose_distribution(self):
         ax = plt.axes()
-        ax.imshow(self.doses)
-        filename = self.save_result()
-        plt.savefig(filename + ".png")
-        self.textBrowser.append("Картинка автоматически сохранена в " + str(filename) + ".png")
+        ax.imshow(self.doses, origin="lower", extent=[0, self.tomo_shape[0] * self.voxel_size[0], 0, self.tomo_shape[2] *
+                                                      self.voxel_size[2]])
         plt.show()
 
     def short_filename(self):

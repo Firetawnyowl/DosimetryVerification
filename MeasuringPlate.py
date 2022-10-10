@@ -17,7 +17,7 @@ class MeasuringPlatePlacement:
     def __init__(self, y_coordinate, x_rotate, z_rotate, size=(1, 200, 320)):
         self.size = size
         self.y_coordinate = y_coordinate
-        self.center = [0, self.y_coordinate, 0]
+        self.center = [self.size[2]/2, self.y_coordinate, self.size[1]/2]
         self.rotation_matrix = Geometry.rotation_matrix(x_rotate, z_rotate)
         self.corners = self.corners_after_rotation_and_placing()
         self.boundaries = self.find_boundaries()

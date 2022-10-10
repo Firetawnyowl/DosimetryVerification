@@ -34,17 +34,17 @@ class Phantom:
             relative_corners = VoxelStructure.Parallelepiped.corners_relative_to_center([self.voxel_size[0],
                                                                                         self.voxel_size[1]*self.shape[1],
                                                                                         self.voxel_size[2]*self.shape[2]])
-            center = (self.voxel_size[0]*(index-self.shape[0]/2 + 0.5), self.voxel_size[1]*self.shape[1]/2, 0)
+            center = (self.voxel_size[0]*(index + 0.5), self.voxel_size[1]*self.shape[1]/2, self.voxel_size[2]*self.shape[2]/2)
         elif axis == "Y":
             relative_corners = VoxelStructure.Parallelepiped.corners_relative_to_center([self.voxel_size[0]*self.shape[0],
                                                                                          self.voxel_size[1],
                                                                                          self.voxel_size[2]*self.shape[2]])
-            center = (0, self.voxel_size[1]*(index + 0.5), 0)
+            center = (self.voxel_size[0]*self.shape[0]/2, self.voxel_size[1]*(index + 0.5), self.voxel_size[2]*self.shape[2]/2)
         else:
             relative_corners = VoxelStructure.Parallelepiped.corners_relative_to_center([self.voxel_size[0]*self.shape[0],
                                                                                          self.voxel_size[1]*self.shape[1],
                                                                                          self.voxel_size[2]])
-            center = (0, self.voxel_size[1]*self.shape[1]/2, self.voxel_size[2]*(index-self.shape[2]/2 + 0.5))
+            center = (self.voxel_size[0]*self.shape[0]/2, self.voxel_size[1]*self.shape[1]/2, self.voxel_size[2]*(index + 0.5))
         corners = VoxelStructure.Parallelepiped.corners(relative_corners, center)
         return corners
 
@@ -109,7 +109,7 @@ class Phantom:
 
     def corners(self):
         relative_corners = VoxelStructure.Parallelepiped.corners_relative_to_center(self.size)
-        return VoxelStructure.Parallelepiped.corners(relative_corners, (0, self.size[0]/2, 0))
+        return VoxelStructure.Parallelepiped.corners(relative_corners, (self.size[0]/2, self.size[1]/2, self.size[2]/2))
 
     def plot_edges(self, ax, color='blue'):
         VoxelStructure.Parallelepiped.plot_edges(ax, self.corners(), color=color)
@@ -119,6 +119,7 @@ class PhantomPart(VoxelStructure.FixedVoxelStructure):
     def __init__(self, phantom, measuring_plate):
         min_layer_index, max_layer_index = phantom.find_layers(measuring_plate.boundaries)
         self.data = phantom.desired_layers_structure(measuring_plate.boundaries)
+        self.size = phantom.size
         # self.y_coordinate = measuring_plate.y_coordinate
         self.nonzero_boundaries, self.nonzero_data = self.nonzero_part()
         super().__init__(self.data, phantom.voxel_size)
@@ -130,7 +131,7 @@ class PhantomPart(VoxelStructure.FixedVoxelStructure):
 
         relative_corners = VoxelStructure.Parallelepiped.corners_relative_to_center(size)
 
-        corners = VoxelStructure.Parallelepiped.corners(relative_corners, (0, self.y_coordinate, 0))
+        corners = VoxelStructure.Parallelepiped.corners(relative_corners, (self.size[0]/2, self.y_coordinate, self.size[2]/2))
         VoxelStructure.Parallelepiped.plot_edges(ax, corners, color="green")
 
     @staticmethod
