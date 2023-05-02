@@ -23,6 +23,7 @@ class LoadFile:
         # return data[::-1], number_of_voxels
 
     def reshaped_data(self, shape):
+        # original_data = np.rot90(self.data.reshape(shape[2], shape[1], shape[0]), k=1, axes=(2, 1)) # Раскомментировать, чтобы повернуть томограмму на 90 градусов вокруг вертикальной оси!
         original_data = self.data.reshape(shape[2], shape[1], shape[0])
-        reshaped_data = np.transpose(original_data, (1, 0, 2))
-        return reshaped_data
+        transposed_data = np.transpose(original_data, (1, 0, 2))
+        return original_data, transposed_data
