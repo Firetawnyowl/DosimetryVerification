@@ -6,9 +6,9 @@ import VoxelStructure
 
 class Phantom:
     def __init__(self, load_data, shape, voxel_size=(1, 1, 1)):
-        self.dose_data = load_data.reshaped_data(shape)
-        self.original_data = load_data.data
-        self.original_data_layers = self.original_data.reshape(shape[2], shape[1], shape[0])  # воксели считаются по горизонтальным слоям
+        self.original_data_layers, self.dose_data = load_data.reshaped_data(shape)
+        # self.original_data = load_data.data
+        # self.original_data_layers = self.original_data.reshape(shape[2], shape[1], shape[0])  # воксели считаются по горизонтальным слоям
         self.shape = shape
         self.voxel_size = voxel_size
         self.size = (self.shape[0]*self.voxel_size[0], self.shape[1]*self.voxel_size[1],

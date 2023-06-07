@@ -65,7 +65,7 @@ def check_special_case_intersection_with_fixed_voxel(phantom_voxel_size, fixed_v
             ((low_y_check and high_y_check) and point_in_z_boundaries and point_in_x_boundaries) or
             ((low_y_check and high_y_check) and (low_z_check and high_z_check) and point_in_x_boundaries) or
             ((low_z_check and high_z_check) and point_in_x_boundaries and point_in_y_boundaries)):
-        print("special intersection case")
+        # print("special intersection case")
         return True
     else:
         return False
@@ -97,7 +97,6 @@ def find_first_intersected_voxel(nonzero_data, voxel_size, movable_voxel, movabl
         #             return current_index
 
 
-
 def check_neighbors(movable_voxel_corners, movable_voxel, nonzero_data, voxel_size, voxdata, is_cubic):
     first_intersected_voxel_index = find_first_intersected_voxel(nonzero_data, voxel_size, movable_voxel, movable_voxel_corners, is_cubic)
     intersected_voxels_indexes = [first_intersected_voxel_index]
@@ -119,7 +118,9 @@ def check_neighbors(movable_voxel_corners, movable_voxel, nonzero_data, voxel_si
                                                                                    movable_voxel_corners)
                     except Exception as ex:
                         print(type(ex).__name__, ex.args)
-                        checking = False
+                        checking = check_special_case_intersection_with_fixed_voxel(voxel_size, neighbor_voxel,
+                                                                                   movable_voxel_corners)
+                        # checking = False
                 if checking:
                     neighbors_of_intersected_voxel = find_neighbors(voxdata, neighbor_index)
                     for current_neighbor in neighbors_of_intersected_voxel:
@@ -169,11 +170,15 @@ def find_intersection_points_of_two_voxels(movable_voxel_points, fixed_voxel,
         for plane in movable_voxel_plains:
             try:
                 point = Geometry.find_intersection_point(plane, edge[0], edge[1])
-                if (point is not None) and Geometry.is_point_on_edge_checking(point, edge[0], edge[1]) and \
-                        Geometry.is_point_in_movable_voxel(point, movable_voxel_plains, plate_voxel_size):
-                    #  Geometry.is_point_in_voxel(point, movable_voxel_points):
-                    if point not in points:
-                        points.append(point)
+                try:
+                    if (point is not None) and Geometry.is_point_on_edge_checking(point, edge[0], edge[1]) and \
+                                               Geometry.is_point_in_movable_voxel(point, movable_voxel_plains,
+                                                                                  plate_voxel_size):
+                        # Geometry.is_point_in_voxel(point, movable_voxel_points):
+                        if point not in points:
+                            points.append(point)
+                except Exception as ex:
+                    print(type(ex.__name__), ex.args)
             except ZeroDivisionError:
                 continue
     return points
@@ -189,8 +194,12 @@ def corners_of_the_intersection_area(plate_voxel_size, movable_voxel_points, fix
         except Exception as ex:
             print(type(ex.__name__), ex.args)
     for point in fixed_voxel_points:
-        if Geometry.is_point_in_movable_voxel(point, movable_voxel_plains, plate_voxel_size):
-            points.append(point)
+        try:
+            if Geometry.is_point_in_movable_voxel(point, movable_voxel_plains, plate_voxel_size):
+            #if Geometry.is_point_in_voxel(point, movable_voxel_points):
+                points.append(point)
+        except Exception as ex:
+            print(type(ex.__name__), ex.args)
     points += find_intersection_points_of_two_voxels(movable_voxel_points, fixed_voxel, plate_voxel_size, fixed_voxel_points, phantom_voxel_size)
     return np.array(points)
 
@@ -214,9 +223,11 @@ def contribution_to_dose(plate_voxel_size, movable_voxel_points, phantom_voxel_s
         # print(fixed_voxel, "объём пересекаемой области: ", intersection_volume)
         dose_contribution = fixed_voxel[3] * intersection_volume / voxel_volume
 
-        # ax = plt.axes(projection='3d')
-        # VoxelStructure.Parallelepiped.plot_edges(ax, measuring_plate.voxel_corners_after_rotation(movable_voxel), "orange")
-        # VoxelStructure.Parallelepiped.plot_edges(ax, phantom_part.voxel_corners(fixed_voxel[1]), "red")
+        # VoxelStructure.Parallelepiped.plot_edges(ax, movable_voxel_points, "orange")
+        # VoxelStructure.Parallelepiped.plot_edges(ax, fixed_voxel_points, "red")
+        #
+        # for point in intersection:
+        #     ax.scatter(point[0], point[1], point[2], color="blue")
         # plt.show()
 
         # print("dose contribution by voxel ", fixed_voxel, dose_contribution)
@@ -226,12 +237,14 @@ def contribution_to_dose(plate_voxel_size, movable_voxel_points, phantom_voxel_s
 def dose_in_movable_voxel(measuring_plate, movable_voxel, phantom_part, is_cubic):
     movable_voxel_center = VoxelStructure.MovableVoxelStructure.voxel_center_after_rotation(measuring_plate, movable_voxel)
     movable_voxel_corners = measuring_plate.voxel_corners_after_rotation(movable_voxel)
+    # plate_corners = measuring_plate.corners_after_rotation_and_placing()
     voxdata = phantom_part.data
     nonzero_data = phantom_part.nonzero_data
     phantom_voxel_size = phantom_part.voxel_size
     plate_voxel_size = measuring_plate.voxel_size
     intersected_voxels = find_intersected_voxels(movable_voxel_center, movable_voxel_corners, nonzero_data, phantom_voxel_size, voxdata, is_cubic)
     dose = 0.
+    # ax = plt.axes(projection='3d')
     for fixed_voxel in intersected_voxels:
         fixed_voxel_points = phantom_part.voxel_corners(fixed_voxel)
         dose += contribution_to_dose(plate_voxel_size, movable_voxel_corners, phantom_voxel_size, fixed_voxel, fixed_voxel_points)

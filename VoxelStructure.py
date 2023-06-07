@@ -107,10 +107,10 @@ class MovableVoxelStructure(VoxelStructure):
     def plains_points(corners):
         plains_points = np.array([[corners[0], corners[1], corners[3]],
                                   [corners[4], corners[5], corners[7]],
-                                  [corners[1], corners[3], corners[7]],
-                                  [corners[0], corners[2], corners[6]],
                                   [corners[0], corners[1], corners[5]],
-                                  [corners[3], corners[2], corners[6]]])
+                                  [corners[3], corners[2], corners[6]],
+                                  [corners[1], corners[3], corners[7]],
+                                  [corners[0], corners[2], corners[6]]])
         return plains_points
 
     @staticmethod
@@ -122,10 +122,10 @@ class MovableVoxelStructure(VoxelStructure):
             x2, y2, z2 = plain[1][0], plain[1][1], plain[1][2]
             x3, y3, z3 = plain[2][0], plain[2][1], plain[2][2]
 
-            a = ((y2 - y1)*(z3 - z1) - (z2 - z1)*(y3 - y1))
-            b = -((x2 - x1)*(z3 - z1) - (z2 - z1)*(x3 - x1))
-            c = ((x2 - x1)*(y3 - y1) - (y2 - y1)*(x3 - x1))
-            d = -(a*x1 + b*y1 + c*z1)
+            a = ((y2 - y1) * (z3 - z1) - (z2 - z1) * (y3 - y1))
+            b = -((x2 - x1) * (z3 - z1) - (z2 - z1) * (x3 - x1))
+            c = ((x2 - x1) * (y3 - y1) - (y2 - y1) * (x3 - x1))
+            d = -(a * x1 + b * y1 + c * z1)
             plain_parameters = [a, b, c, d]
             plains.append(plain_parameters)
         return np.array(plains)

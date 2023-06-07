@@ -2,7 +2,7 @@
 
 import math
 import numpy as np
-# from scipy.spatial import ConvexHull
+from scipy.spatial import ConvexHull
 from numba import njit
 
 
@@ -56,8 +56,13 @@ def voxel_boundaries(voxel_size, voxel):
 @njit(cache=True)
 def is_point_in_fixed_voxel(p, voxel, voxel_size):
     vox_boundaries = voxel_boundaries(voxel_size, voxel)
-    if ((vox_boundaries[0][0] <= p[0] <= vox_boundaries[0][1]) and (vox_boundaries[1][0] <= p[1] <= vox_boundaries[1][1])
-            and (vox_boundaries[2][0] <= p[2] <= vox_boundaries[2][1])):
+    # print("fix_vox_bound: ", vox_boundaries)
+    # print("point", p, type(p))
+    # print("round", round(p[0], 3), round(p[1], 3), round(p[2], 3))
+    # print("voxel: ", voxel)
+    if (((vox_boundaries[0][0]-0.00001) <= round(p[0], 3) <= (vox_boundaries[0][1]+0.00001)) and ((vox_boundaries[1][0]-0.00001) <= round(p[1], 3) <= (vox_boundaries[1][1]+0.00001))
+            and ((vox_boundaries[2][0]-0.00001) <= round(p[2], 3) <= (vox_boundaries[2][1])+0.00001)):
+        # print("point IS in voxel")
         return True
     else:
         return False
@@ -73,6 +78,16 @@ def projection_to_plain(point, plane):
     projected_point = (x_new, y_new, z_new)
     return projected_point
 
+# def is_point_in_movable_voxel(p, vox_plains, vox_size):
+#     # print("point: ", p, "distance: ", distance(p, projection_to_plain(p, vox_plains[0])) + distance(p, projection_to_plain(p, vox_plains[1])), "vox_x: ", vox_size[0])
+#     # print("point: ", p, "distance: ", distance(p, projection_to_plain(p, vox_plains[2])) + distance(p, projection_to_plain(p, vox_plains[3])), "vox_y: ", vox_size[1])
+#     # print("point: ", p, "distance: ", distance(p, projection_to_plain(p, vox_plains[4])) + distance(p, projection_to_plain(p, vox_plains[5])), "vox_z: ", vox_size[2])
+#     if (math.isclose(distance(p, projection_to_plain(p, vox_plains[0])) + distance(p, projection_to_plain(p, vox_plains[1])), vox_size[0], abs_tol=1e-03) and
+#             math.isclose(distance(p, projection_to_plain(p, vox_plains[2])) + distance(p, projection_to_plain(p, vox_plains[3])), vox_size[1], abs_tol=1e-03) and
+#             math.isclose(distance(p, projection_to_plain(p, vox_plains[4])) + distance(p, projection_to_plain(p, vox_plains[5])), vox_size[2], abs_tol=1e-03)):
+#         return True
+#     else:
+#         return False
 
 @njit(cache=True)
 def is_point_in_movable_voxel(p, vox_plains, vox_size):
@@ -121,8 +136,8 @@ def distance(point1, point2):
 @njit(cache=True)
 def is_point_on_edge_checking(intersection_point, point1, point2):
     check = False
-    if (distance(intersection_point, point1) <= distance(point1, point2)) and \
-            (distance(intersection_point, point2) <= distance(point1, point2)):
+    if (round(distance(intersection_point, point1), 3) <= round(distance(point1, point2), 3)) and \
+            (round(distance(intersection_point, point2), 3) <= round(distance(point1, point2), 3)):
         check = True
     return check
 

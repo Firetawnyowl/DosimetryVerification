@@ -18,7 +18,7 @@ if __name__ == "__main__":
     vox_set = LoadFile.LoadFile("data\\TestTomo.dose")
     print(vox_set.data.shape)
     phantom = Phantom.Phantom(vox_set, shape=(20, 20, 20), voxel_size=(5, 5, 5))
-    measuring_plate = MeasuringPlate.MeasuringPlate(25, 80, 0, voxel_size=(5, 5, 5), shape=(1, 20, 20))
+    measuring_plate = MeasuringPlate.MeasuringPlate(70, 0, 0, voxel_size=(5, 5, 5), shape=(1, 20, 20))
     print(phantom.dose_data.size)
     print("phantom.shape", phantom.shape)
     # print(measuring_plate.boundaries)

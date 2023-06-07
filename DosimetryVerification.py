@@ -32,11 +32,25 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
         # sys.stdout = EmittingStream()
         self.setupUi(self)
         self.file = None
+        if not os.path.exists("results"):
+            os.mkdir("results")
         if os.path.exists("path.json"):
             with open("path.json", "r") as file:
-                self.dir_name = json.load(file)
+                dir_name = json.load(file)
+                if dir_name != "":
+                    self.dir_name = dir_name
+                else:
+                    result_dir = os.path.join(os.path.abspath(os.curdir), "results")
+                    self.dir_name = result_dir
+                    with open('path.json', "w") as file:
+                        json.dump(self.dir_name, file)
         else:
-            self.dir_name = os.path.abspath(os.curdir)
+            with open('path.json', "w") as file:
+                dir_name = os.path.abspath(os.curdir)
+                result_dir = os.path.join(dir_name, "results")
+                self.dir_name = result_dir
+                json.dump(self.dir_name, file)
+            #  self.dir_name = os.path.abspath(os.curdir)
         self.vox_set = None
         self.action_LoadTomo.triggered.connect(self.show_dialog_load)
         self.action_ChoosePath.triggered.connect(self.show_dialog_choose_path)
@@ -76,6 +90,10 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
     #     """Append text to the QTextEdit."""
     #     self.textBrowser.append(text)
 
+
+    # def create_results_folder(self):
+
+
     def get_phantom_configuration(self):
         self.phantom = Phantom.Phantom(self.vox_set, self.tomo_shape, voxel_size=self.voxel_size)
 
@@ -83,7 +101,7 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
                                                              self.doubleSpinBox_RotX.value(),
                                                              self.doubleSpinBox_RotZ.value(),
                                                              self.voxel_size,
-                                                             (1, self.tomo_shape[2], self.tomo_shape[0]))
+                                                             (self.tomo_shape[0], 1, self.tomo_shape[2]))
 
         self.phantom_part = Phantom.PhantomPart(self.phantom, self.measuring_plate)
 
@@ -106,10 +124,12 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
         #         print("test")
         # else:
         #     home_dir = os.path.abspath(os.curdir)
-        self.dir_name = QtWidgets.QFileDialog.getExistingDirectory(self, 'Choose Path', self.dir_name)
-        print(self.dir_name)
-        with open('path.json', "w") as file:
-            json.dump(self.dir_name, file)
+        dir_name = QtWidgets.QFileDialog.getExistingDirectory(self, 'Choose Path', self.dir_name)
+        print(dir_name)
+        if dir_name != "":
+            self.dir_name = dir_name
+            with open('path.json', "w") as file:
+                json.dump(self.dir_name, file)
 
     def show_dialog_visualise_numpy(self):
         try:
@@ -225,10 +245,11 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
             ax2.imshow(layer, origin="lower", extent=extent)
             plt.show()
         if mode == "save":
-            with open("path.json", "r") as file:
-                dir_name = json.load(file)
-                filename = "layer_"+str(layer_index)+"_axis_"+self.axis
-            full_name = dir_name+"/"+self.short_filename() + "_" + filename
+            # with open("path.json", "r") as file:
+            #     dir_name = json.load(file)
+            dir_name = self.dir_name
+            filename = "layer_"+str(layer_index)+"_axis_"+self.axis
+            full_name = os.path.join(dir_name, self.short_filename() + "_" + filename)
             with open(full_name + ".dat", "w") as file:
                 file.write("PTW-Image File Format\n"+
                            "VERSION		1.0\n"+
@@ -307,7 +328,7 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
     def short_filename(self):
         rfilename = ""
         for letter in self.file[0][::-1]:
-            if letter != "/":
+            if letter != "/" and letter != "\\":
                 rfilename += letter
             else:
                 break
@@ -315,10 +336,13 @@ class App(QtWidgets.QMainWindow, gui_main.Ui_MainWindow):
         return filename
 
     def save_result(self):
-        with open("path.json", "r") as file:
-            dir_name = json.load(file)
-        filename = dir_name + "/" + self.short_filename() + "_" + str(self.doubleSpinBox_PlaceY.value()) + "mm_" + str(
-            self.doubleSpinBox_RotX.value()) + "_" + str(self.doubleSpinBox_RotZ.value())
+        # with open("path.json", "r") as file:
+        #     dir_name = json.load(file)
+        # print(dir_name)
+
+        print(self.short_filename())
+        filename = os.path.join(self.dir_name, self.short_filename() + "_" + str(self.doubleSpinBox_PlaceY.value()) + "mm_" + str(
+            self.doubleSpinBox_RotX.value()) + "_" + str(self.doubleSpinBox_RotZ.value()))
         return filename
 
 

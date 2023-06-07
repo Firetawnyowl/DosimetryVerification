@@ -14,18 +14,18 @@ import VoxIntersections
 
 
 class MeasuringPlatePlacement:
-    def __init__(self, y_coordinate, x_rotate, z_rotate, size=(1, 200, 320)):
+    def __init__(self, y_coordinate, x_rotate, z_rotate, size=(320, 1, 200)):
         self.size = size
         self.y_coordinate = y_coordinate
-        self.center = [self.size[2]/2, self.y_coordinate, self.size[1]/2]
+        self.center = [self.size[0]/2, self.y_coordinate, self.size[2]/2]
         self.rotation_matrix = Geometry.rotation_matrix(x_rotate, z_rotate)
         self.corners = self.corners_after_rotation_and_placing()
         self.boundaries = self.find_boundaries()
 
     def corners_relative_to_center_before_rotation(self):
-        x_relative_to_center = self.size[2] / 2
-        y_relative_to_center = self.size[0] / 2
-        z_relative_to_center = self.size[1] / 2
+        x_relative_to_center = self.size[0] / 2
+        y_relative_to_center = self.size[1] / 2
+        z_relative_to_center = self.size[2] / 2
         points = []
         for i in [x_relative_to_center, -x_relative_to_center]:
             for j in [y_relative_to_center, -y_relative_to_center]:
@@ -55,6 +55,7 @@ class MeasuringPlatePlacement:
             point[1] += self.center[1]
             point[2] += self.center[2]
 
+        # print("corners after rotation and placing: ", points)
         return np.array(points)
 
     def find_boundaries(self):
@@ -68,11 +69,11 @@ class MeasuringPlatePlacement:
 
 
 class MeasuringPlate(MeasuringPlatePlacement, VoxelStructure.MovableVoxelStructure):
-    def __init__(self, y_coordinate, x_rotate, z_rotate, voxel_size=(1, 1, 1), shape=(1, 200, 320)):
+    def __init__(self, y_coordinate, x_rotate, z_rotate, voxel_size=(1, 1, 1), shape=(320, 1, 200)):
         self.voxel_size = voxel_size
-        self.size = (shape[0]*voxel_size[1], shape[1]*voxel_size[2], shape[2]*voxel_size[0])
-        self.number_of_voxels_by_x = shape[2]  # int(self.size[2]/voxel_size[0])
-        self.number_of_voxels_by_z = shape[1]  # int(self.size[1]/voxel_size[1])
+        self.size = (shape[0]*voxel_size[0], shape[1]*voxel_size[1], shape[2]*voxel_size[2])
+        self.number_of_voxels_by_x = shape[0]  # int(self.size[2]/voxel_size[0])
+        self.number_of_voxels_by_z = shape[2]  # int(self.size[1]/voxel_size[1])
         self.y_coordinate = y_coordinate
         self.structure = self.voxel_structure()
         super(MeasuringPlate, self).__init__(y_coordinate, x_rotate, z_rotate, self.size)
@@ -124,7 +125,7 @@ class DoseDistribution:
         manager = mp.Manager()
         voxels = manager.Queue()
         doses = manager.Queue()
-        ncpu = mp.cpu_count()
+        ncpu = mp.cpu_count()-1
         for voxel in self.nonzero_structure():
             voxels.put(voxel)
         # print(voxels.qsize())
